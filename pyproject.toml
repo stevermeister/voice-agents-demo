@@ -1,0 +1,27 @@
+[project]
+name = "voice-agents-crash-course"
+version = "0.1.0"
+description = "Demo code for Voice Agents crash course presentation"
+requires-python = ">=3.11"
+dependencies = [
+    # STT
+    "openai-whisper",
+    "deepgram-sdk",
+    # TTS
+    "cartesia",
+    "elevenlabs",
+    # Voice agent frameworks
+    "pipecat-ai",
+    "livekit",
+    "livekit-agents",
+    # Phone
+    "vapi-python",
+    "retell-sdk",
+    # Utilities
+    "python-dotenv",
+    "numpy",
+    "sounddevice",
+    "rich",
+    "httpx",
+]
+

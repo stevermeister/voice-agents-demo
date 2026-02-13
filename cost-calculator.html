@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Agent Cost Calculator</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+        }
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle { color: #94a3b8; margin-bottom: 2rem; }
+        .container {
+            max-width: 800px;
+            width: 100%;
+        }
+        .card {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid #334155;
+        }
+        .card h2 {
+            font-size: 1.1rem;
+            color: #38bdf8;
+            margin-bottom: 1rem;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        label {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+            font-size: 0.9rem;
+            color: #94a3b8;
+        }
+        label span.value {
+            color: #38bdf8;
+            font-weight: 600;
+            font-size: 1rem;
+        }
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #334155;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #38bdf8;
+            cursor: pointer;
+        }
+        .results {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        .result-card {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid #334155;
+            text-align: center;
+        }
+        .result-card.managed { border-color: #f59e0b; }
+        .result-card.selfhosted { border-color: #10b981; }
+        .result-card h3 {
+            font-size: 0.9rem;
+            color: #94a3b8;
+            margin-bottom: 0.5rem;
+        }
+        .result-card .price {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+        .result-card.managed .price { color: #f59e0b; }
+        .result-card.selfhosted .price { color: #10b981; }
+        .result-card .detail {
+            font-size: 0.8rem;
+            color: #64748b;
+            margin-top: 0.5rem;
+        }
+        .winner {
+            text-align: center;
+            padding: 1rem;
+            font-size: 1.2rem;
+            font-weight: 600;
+            border-radius: 12px;
+            margin-top: 1rem;
+        }
+        .winner.managed { background: rgba(245,158,11,0.15); color: #f59e0b; }
+        .winner.selfhosted { background: rgba(16,185,129,0.15); color: #10b981; }
+        .breakdown {
+            margin-top: 1rem;
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+        .breakdown table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 0.5rem;
+        }
+        .breakdown th, .breakdown td {
+            padding: 0.4rem 0.6rem;
+            text-align: left;
+            border-bottom: 1px solid #334155;
+        }
+        .breakdown th { color: #64748b; font-weight: 500; }
+    </style>
+</head>
+<body>
+    <h1>📞 Voice Agent Cost Calculator</h1>
+    <p class="subtitle">Managed platform vs self-hosted — what's cheaper at your scale?</p>
+
+    <div class="container">
+        <div class="card">
+            <h2>📊 Your Volume</h2>
+            <div class="input-group">
+                <label>
+                    Monthly call minutes
+                    <span class="value" id="minutes-display">10,000</span>
+                    <input type="range" id="minutes" min="100" max="500000" value="10000" step="100">
+                </label>
+                <label>
+                    Average call duration (minutes)
+                    <span class="value" id="duration-display">3</span>
+                    <input type="range" id="duration" min="1" max="30" value="3" step="1">
+                </label>
+                <label>
+                    Concurrent calls (peak)
+                    <span class="value" id="concurrency-display">5</span>
+                    <input type="range" id="concurrency" min="1" max="100" value="5" step="1">
+                </label>
+            </div>
+        </div>
+
+        <div class="results">
+            <div class="result-card managed">
+                <h3>🏢 Managed (e.g. VAPI / Retell)</h3>
+                <div class="price" id="managed-price">$0</div>
+                <div class="detail" id="managed-detail"></div>
+            </div>
+            <div class="result-card selfhosted">
+                <h3>🛠️ Self-Hosted (e.g. LiveKit + APIs)</h3>
+                <div class="price" id="selfhosted-price">$0</div>
+                <div class="detail" id="selfhosted-detail"></div>
+            </div>
+        </div>
+
+        <div class="winner" id="winner"></div>
+
+        <div class="card breakdown">
+            <h2>💡 Cost Breakdown</h2>
+            <table>
+                <thead>
+                    <tr><th>Component</th><th>Managed</th><th>Self-Hosted</th></tr>
+                </thead>
+                <tbody id="breakdown-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const minutesSlider = document.getElementById('minutes');
+        const durationSlider = document.getElementById('duration');
+        const concurrencySlider = document.getElementById('concurrency');
+
+        // Pricing assumptions (per minute unless noted)
+        const PRICING = {
+            managed: {
+                perMinute: 0.05,       // ~$0.05/min all-in (VAPI/Retell typical)
+                platformFee: 0,         // included in per-minute
+            },
+            selfHosted: {
+                stt: 0.006,             // Deepgram Nova ~$0.0059/min
+                llm: 0.002,             // GPT-4o-mini ~$0.002/min (est. ~150 tokens/min)
+                tts: 0.015,             // ElevenLabs ~$0.015/min
+                telephony: 0.008,       // Twilio ~$0.008/min
+                infra: 50,              // base server cost $/month
+                infraPerConcurrent: 15, // additional $/month per concurrent call capacity
+            }
+        };
+
+        function formatCurrency(n) {
+            return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+        }
+
+        function formatNumber(n) {
+            return n.toLocaleString('en-US');
+        }
+
+        function calculate() {
+            const minutes = parseInt(minutesSlider.value);
+            const duration = parseInt(durationSlider.value);
+            const concurrency = parseInt(concurrencySlider.value);
+
+            document.getElementById('minutes-display').textContent = formatNumber(minutes);
+            document.getElementById('duration-display').textContent = duration;
+            document.getElementById('concurrency-display').textContent = concurrency;
+
+            // Managed cost
+            const managedTotal = minutes * PRICING.managed.perMinute;
+
+            // Self-hosted cost
+            const sttCost = minutes * PRICING.selfHosted.stt;
+            const llmCost = minutes * PRICING.selfHosted.llm;
+            const ttsCost = minutes * PRICING.selfHosted.tts;
+            const telCost = minutes * PRICING.selfHosted.telephony;
+            const infraCost = PRICING.selfHosted.infra + (concurrency * PRICING.selfHosted.infraPerConcurrent);
+            const selfHostedTotal = sttCost + llmCost + ttsCost + telCost + infraCost;
+
+            // Update UI
+            document.getElementById('managed-price').textContent = formatCurrency(managedTotal) + '/mo';
+            document.getElementById('managed-detail').textContent =
+                `${formatCurrency(PRICING.managed.perMinute)}/min × ${formatNumber(minutes)} min`;
+
+            document.getElementById('selfhosted-price').textContent = formatCurrency(selfHostedTotal) + '/mo';
+            document.getElementById('selfhosted-detail').textContent =
+                `APIs + ${formatCurrency(infraCost)} infra`;
+
+            // Winner
+            const winnerEl = document.getElementById('winner');
+            const savings = Math.abs(managedTotal - selfHostedTotal);
+            if (managedTotal < selfHostedTotal) {
+                winnerEl.className = 'winner managed';
+                winnerEl.textContent = `🏢 Managed wins — saves ${formatCurrency(savings)}/mo`;
+            } else {
+                winnerEl.className = 'winner selfhosted';
+                winnerEl.textContent = `🛠️ Self-hosted wins — saves ${formatCurrency(savings)}/mo`;
+            }
+
+            // Breakdown table
+            const tbody = document.getElementById('breakdown-body');
+            tbody.innerHTML = `
+                <tr><td>STT</td><td>included</td><td>${formatCurrency(sttCost)}</td></tr>
+                <tr><td>LLM</td><td>included</td><td>${formatCurrency(llmCost)}</td></tr>
+                <tr><td>TTS</td><td>included</td><td>${formatCurrency(ttsCost)}</td></tr>
+                <tr><td>Telephony</td><td>included</td><td>${formatCurrency(telCost)}</td></tr>
+                <tr><td>Infrastructure</td><td>—</td><td>${formatCurrency(infraCost)}</td></tr>
+                <tr><td>Platform fee</td><td>${formatCurrency(managedTotal)}</td><td>—</td></tr>
+                <tr style="font-weight:700;border-top:2px solid #475569">
+                    <td>Total</td><td>${formatCurrency(managedTotal)}</td><td>${formatCurrency(selfHostedTotal)}</td>
+                </tr>
+            `;
+        }
+
+        minutesSlider.addEventListener('input', calculate);
+        durationSlider.addEventListener('input', calculate);
+        concurrencySlider.addEventListener('input', calculate);
+
+        calculate();
+    </script>
+</body>
+</html>

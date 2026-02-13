@@ -1,0 +1,20 @@
+{
+  "name": "Demo Phone Agent",
+  "model": {
+    "provider": "openai",
+    "model": "gpt-4o-mini",
+    "systemPrompt": "You are a helpful phone assistant for a voice agents demo. Be concise and friendly. Keep responses under 2 sentences."
+  },
+  "voice": {
+    "provider": "cartesia",
+    "voiceId": "a0e99841-438c-4a64-b679-ae501e7d6091"
+  },
+  "firstMessage": "Hello! This is a demo voice agent. How can I help you today?",
+  "transcriber": {
+    "provider": "deepgram",
+    "model": "nova-2"
+  },
+  "endCallMessage": "Thanks for trying the demo. Goodbye!",
+  "silenceTimeoutSeconds": 30,
+  "maxDurationSeconds": 120
+}

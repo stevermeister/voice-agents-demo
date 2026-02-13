@@ -1,0 +1,23 @@
+# LiveKit SIP Trunk Configuration
+# See: https://docs.livekit.io/sip/
+
+sip_trunk:
+  # Inbound trunk – receives calls from your SIP provider
+  inbound:
+    name: "demo-inbound"
+    # Your SIP provider's allowed IPs/domains
+    allowed_addresses:
+      - "sip.provider.com"
+    # Phone numbers associated with this trunk
+    numbers:
+      - "+1234567890"
+
+  # Dispatch rule – routes inbound calls to a LiveKit room
+  dispatch_rules:
+    - rule:
+        # Create a new room for each call
+        dispatchRuleIndividual:
+          roomPrefix: "phone-call-"
+      trunk_ids: []  # applies to all trunks
+
+# Agent worker will auto-join rooms matching the prefix above
