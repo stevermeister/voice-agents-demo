@@ -11,17 +11,19 @@ dependencies = [
     "cartesia",
     "elevenlabs",
     # Voice agent frameworks
-    "pipecat-ai",
+    "pipecat-ai[daily,deepgram,openai,cartesia,silero]",
     "livekit",
     "livekit-agents",
     # Phone
     "vapi-python",
+    "vapi-server-sdk",
     "retell-sdk",
     # Utilities
     "python-dotenv",
     "numpy",
     "sounddevice",
     "rich",
+    "loguru",
     "httpx",
 ]
 

@@ -1,6 +1,6 @@
 # 04 – Phone Agent
 
-Build voice agents that work over the phone using three different platforms.
+Build voice agents that work over the phone using four different platforms.
 
 ## Demos
 
@@ -9,6 +9,7 @@ Build voice agents that work over the phone using three different platforms.
 | `vapi-quickstart/` | Managed phone agent with VAPI – assistant config + webhook server |
 | `livekit-sip/` | Self-hosted phone agent with LiveKit SIP |
 | `retell-quickstart/` | Managed phone agent with Retell AI |
+| `pipecat-phone/` | Self-hosted phone agent with Pipecat + Daily/Twilio |
 
 ## Run
 
@@ -21,4 +22,7 @@ uv run 04-phone-agent/livekit-sip/agent.py
 
 # Retell
 uv run 04-phone-agent/retell-quickstart/setup.py
+
+# Pipecat
+uv run 04-phone-agent/pipecat-phone/agent.py
 ```
