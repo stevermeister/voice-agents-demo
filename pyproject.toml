@@ -11,7 +11,7 @@ dependencies = [
     "cartesia",
     "elevenlabs",
     # Voice agent frameworks
-    "pipecat-ai[daily,deepgram,openai,cartesia,silero]",
+    "pipecat-ai[daily,deepgram,openai,cartesia,silero,runner]>=0.0.102",
     "livekit",
     "livekit-agents",
     # Phone
