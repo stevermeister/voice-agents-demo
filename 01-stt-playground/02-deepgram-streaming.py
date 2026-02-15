@@ -6,14 +6,10 @@ Requires DEEPGRAM_API_KEY in .env.
 
 import asyncio
 import os
+import queue
 
 import sounddevice as sd
-from deepgram import AsyncDeepgramClient
-from deepgram.core.events import EventType
-from deepgram.extensions.types.sockets import (
-    ListenV1MediaMessage,
-    ListenV1SocketClientResponse,
-)
+from deepgram import DeepgramClient, LiveTranscriptionEvents, LiveOptions
 from dotenv import load_dotenv
 from rich.console import Console
 
@@ -31,69 +27,78 @@ async def main():
         console.print("[red]Set DEEPGRAM_API_KEY in .env[/]")
         return
 
-    client = AsyncDeepgramClient(api_key=api_key)
+    deepgram = DeepgramClient(api_key)
+    connection = deepgram.listen.asyncwebsocket.v("1")
 
-    async with client.listen.v1.connect(
-        model="nova-3",
-        language="en",
-        smart_format="true",
-        interim_results="true",
-        encoding="linear16",
-        sample_rate=str(SAMPLE_RATE),
-        channels=str(CHANNELS),
-    ) as connection:
-
-        def on_message(message: ListenV1SocketClientResponse) -> None:
-            # Each message may contain multiple result types; look for transcripts
-            channel = getattr(message, "channel", None)
-            if channel is None:
-                return
-            transcript = channel.alternatives[0].transcript
-            if not transcript:
-                return
-            is_final = getattr(message, "is_final", False)
-            if is_final:
+    async def on_message(self, result, **kwargs):
+        transcript = result.channel.alternatives[0].transcript
+        if transcript:
+            if result.is_final:
                 console.print(f"[bold cyan]Final:[/] {transcript}")
             else:
                 console.print(f"[dim]Interim:[/] {transcript}", end="\r")
 
-        connection.on(EventType.OPEN, lambda _: None)
-        connection.on(EventType.MESSAGE, on_message)
-        connection.on(
-            EventType.ERROR, lambda err: console.print(f"[red]Error:[/] {err}")
-        )
-        connection.on(EventType.CLOSE, lambda _: None)
+    async def on_error(self, error, **kwargs):
+        console.print(f"[red]Error:[/] {error}")
 
-        await connection.start_listening()
-        console.print("[bold green]🎤 Listening … (Ctrl+C to stop)[/]")
+    connection.on(LiveTranscriptionEvents.Transcript, on_message)
+    connection.on(LiveTranscriptionEvents.Error, on_error)
 
-        # Stream microphone audio to Deepgram
-        audio_queue: asyncio.Queue[bytes] = asyncio.Queue()
-        chunk_samples = int(SAMPLE_RATE * CHUNK_MS / 1000)
+    options = LiveOptions(
+        model="nova-3",
+        language="en",
+        smart_format=True,
+        interim_results=True,
+        encoding="linear16",
+        sample_rate=SAMPLE_RATE,
+        channels=CHANNELS,
+    )
 
-        def _audio_callback(indata, frames, time_info, status):
-            if status:
-                console.print(f"[yellow]Audio warning:[/] {status}")
-            audio_queue.put_nowait(indata.tobytes())
+    # Thread-safe queue for audio from the sounddevice callback thread
+    audio_buf: queue.Queue[bytes] = queue.Queue()
+    chunk_samples = int(SAMPLE_RATE * CHUNK_MS / 1000)
 
-        stream = sd.InputStream(
-            samplerate=SAMPLE_RATE,
-            channels=CHANNELS,
-            dtype="int16",
-            blocksize=chunk_samples,
-            callback=_audio_callback,
-        )
+    def _audio_callback(indata, frames, time_info, status):
+        if status:
+            console.print(f"[yellow]Audio warning:[/] {status}")
+        audio_buf.put_nowait(indata.tobytes())
 
-        try:
-            stream.start()
-            while True:
-                audio_bytes = await audio_queue.get()
-                await connection.send_media(ListenV1MediaMessage(audio_bytes))
-        except (KeyboardInterrupt, asyncio.CancelledError):
-            pass
-        finally:
-            stream.stop()
-            stream.close()
+    stream = sd.InputStream(
+        samplerate=SAMPLE_RATE,
+        channels=CHANNELS,
+        dtype="int16",
+        blocksize=chunk_samples,
+        callback=_audio_callback,
+    )
+
+    # Start mic first, then open WebSocket so audio is ready immediately
+    stream.start()
+
+    started = await connection.start(options)
+    if not started:
+        console.print("[red]Failed to connect to Deepgram[/]")
+        stream.stop()
+        stream.close()
+        return
+
+    console.print("[bold green]🎤 Listening … (Ctrl+C to stop)[/]")
+
+    try:
+        while True:
+            # Poll the thread-safe queue from the async loop
+            try:
+                audio_bytes = audio_buf.get(timeout=0.05)
+            except queue.Empty:
+                await asyncio.sleep(0.01)
+                continue
+            if not await connection.send(audio_bytes):
+                break
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        pass
+    finally:
+        stream.stop()
+        stream.close()
+        await connection.finish()
 
     console.print("[bold green]Done.[/]")
 
