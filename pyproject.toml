@@ -10,6 +10,8 @@ dependencies = [
     # TTS
     "cartesia",
     "elevenlabs",
+    "kokoro>=0.9.4",
+    "soundfile",
     # Voice agent frameworks
     "pipecat-ai[daily,deepgram,openai,cartesia,silero,runner]>=0.0.102",
     "livekit",
