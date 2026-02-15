@@ -1,44 +1,67 @@
-"""Stream TTS audio from Cartesia's Sonic model.
+"""Stream TTS audio from Cartesia's Sonic 3 model.
 
+Streams audio chunks from Cartesia and plays them back locally.
 Requires CARTESIA_API_KEY in .env.
+
+Usage::
+
+    uv run 02-tts-playground/01-cartesia-stream.py
 """
 
+import asyncio
 import os
+import subprocess
+import sys
 
-from cartesia import Cartesia
+from cartesia import AsyncCartesia
 from dotenv import load_dotenv
 from rich.console import Console
 
 load_dotenv()
 console = Console()
 
+OUTPUT_FILE = "cartesia_output.wav"
 
-def main():
+
+async def main():
     api_key = os.getenv("CARTESIA_API_KEY")
     if not api_key:
         console.print("[red]Set CARTESIA_API_KEY in .env[/]")
         return
 
-    client = Cartesia(api_key=api_key)
+    client = AsyncCartesia(api_key=api_key)
 
-    text = "Hello! I'm a voice agent built with Cartesia. How can I help you today?"
+    text = "Hello! I'm a voice agent built with Cartesia Sonic 3. How can I help you today?"
     voice_id = "a0e99841-438c-4a64-b679-ae501e7d6091"  # Barbershop Man
 
-    console.print(f"[bold green]🔊 Streaming: [/]{text}")
+    console.print(f"[bold green]🔊 Streaming:[/] {text}")
 
-    output = client.tts.bytes(
-        model_id="sonic-english",
-        transcript=text,
-        voice_id=voice_id,
-        output_format={"container": "wav", "sample_rate": 44100, "encoding": "pcm_f32le"},
-    )
+    with open(OUTPUT_FILE, "wb") as f:
+        bytes_iter = client.tts.bytes(
+            model_id="sonic-3",
+            transcript=text,
+            voice={
+                "mode": "id",
+                "id": voice_id,
+            },
+            language="en",
+            output_format={
+                "container": "wav",
+                "sample_rate": 44100,
+                "encoding": "pcm_s16le",
+            },
+        )
+        async for chunk in bytes_iter:
+            f.write(chunk)
 
-    # Save to file for playback
-    with open("cartesia_output.wav", "wb") as f:
-        f.write(output)
+    console.print(f"[bold green]✅ Saved to {OUTPUT_FILE}[/]")
 
-    console.print("[bold green]✅ Saved to cartesia_output.wav[/]")
+    # Play the audio
+    if sys.platform == "darwin":
+        subprocess.run(["afplay", OUTPUT_FILE])
+    else:
+        subprocess.run(["ffplay", "-autoexit", "-nodisp", OUTPUT_FILE])
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
